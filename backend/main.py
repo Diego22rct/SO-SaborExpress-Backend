@@ -1,4 +1,4 @@
-from typing import Union
+from typing import List, Union
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from passlib.context import CryptContext
@@ -16,6 +16,12 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 class User(BaseModel):
     username: str
     password: str
+
+class Product(BaseModel):
+    id: int
+    name: str
+    description: str
+    price: float
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
