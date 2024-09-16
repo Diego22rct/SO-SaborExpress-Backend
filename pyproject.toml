@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "backend"
+version = "0.1.0"
+description = ""
+authors = ["Diego22rct <diegorafaelcisnerostafur@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = {extras = ["standard"], version = "^0.114.2"}
+aiomysql = "^0.2.0"
+passlib = "^1.7.4"
+pyjwt = "^2.9.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
