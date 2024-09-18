@@ -1,4 +1,5 @@
 from typing import List, Union
+from fastapi import FastAPI
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from passlib.context import CryptContext
@@ -32,9 +33,9 @@ def get_password_hash(password):
 def create_access_token(data: dict, expires_delta: Union[datetime.timedelta, None] = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.datetime.utcnow() + expires_delta
+        expire = datetime.datetime.now(datetime.timezone.utc)+ expires_delta
     else:
-        expire = datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
+        expire = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -86,7 +87,7 @@ async def create_product(product: Product):
             )
             await conn.commit()
             product_id = cur.lastrowid
-            return {**product.dict(), "id": product_id}
+            return {**product.model_dump(), "id": product_id}
 
 
 @app.post("/signup")
