@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
-from backend.models import User, Product
-from backend.services import verify_password, get_password_hash, create_access_token
+from backend.Models.models import User, Product
+from backend.Services.services import verify_password, get_password_hash, create_access_token
 from fastapi import FastAPI
+
 
 router = APIRouter()
 
