@@ -1,69 +1,53 @@
 from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from typing import List
 from backend.Models.models import User, Product
 from backend.Services.services import verify_password, get_password_hash, create_access_token
-from fastapi import FastAPI
-
+from backend.Database.database import get_db
 
 router = APIRouter()
 
 @router.get("/products", response_model=List[Product])
-async def list_products(app: FastAPI):
-    async with app.state.pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute("SELECT id, name, description, price FROM products")
-            result = await cur.fetchall()
-            products = [Product(id=row[0], name=row[1], description=row[2], price=row[3]) for row in result]
-            return products
+async def list_products(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Product))
+    products = result.scalars().all()
+    return products
 
 @router.get("/products/{product_id}", response_model=Product)
-async def get_product(product_id: int, app: FastAPI):
-    async with app.state.pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute("SELECT id, name, description, price FROM products WHERE id = %s", (product_id,))
-            result = await cur.fetchone()
-            if result:
-                return Product(id=result[0], name=result[1], description=result[2], price=result[3])
-            else:
-                raise HTTPException(status_code=404, detail="Product not found")
+async def get_product(product_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Product).where(Product.id == product_id))
+    product = result.scalar_one_or_none()
+    if product is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
 
 @router.post("/products", response_model=Product)
-async def create_product(product: Product, app: FastAPI):
-    async with app.state.pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(
-                "INSERT INTO products (name, description, price) VALUES (%s, %s, %s)",
-                (product.name, product.description, product.price)
-            )
-            await conn.commit()
-            product_id = cur.lastrowid
-            return {**product.model_dump(), "id": product_id}
+async def create_product(product: Product, db: AsyncSession = Depends(get_db)):
+    db.add(product)
+    await db.commit()
+    await db.refresh(product)
+    return product
 
 @router.post("/signup")
-async def signup(user: User, app: FastAPI):
-    async with app.state.pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            hashed_password = get_password_hash(user.password)
-            await cur.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (user.username, hashed_password))
-            await conn.commit()
-            return {"message": "User created successfully"}
+async def signup(user: User, db: AsyncSession = Depends(get_db)):
+    hashed_password = get_password_hash(user.password)
+    user.password = hashed_password
+    db.add(user)
+    await db.commit()
+    return {"message": "User created successfully"}
 
 @router.post("/signin")
-async def signin(user: User, app: FastAPI):
-    async with app.state.pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute("SELECT password FROM users WHERE username = %s", (user.username,))
-            result = await cur.fetchone()
-            if result and verify_password(user.password, result[0]):
-                access_token = create_access_token(data={"sub": user.username})
-                return {"access_token": access_token, "token_type": "bearer"}
-            else:
-                raise HTTPException(status_code=400, detail="Invalid username or password")
+async def signin(user: User, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.username == user.username))
+    db_user = result.scalar_one_or_none()
+    if db_user and verify_password(user.password, db_user.password):
+        access_token = create_access_token(data={"sub": user.username})
+        return {"access_token": access_token, "token_type": "bearer"}
+    else:
+        raise HTTPException(status_code=400, detail="Invalid username or password")
 
 @router.get("/")
-async def read_root(app: FastAPI):
-    async with app.state.pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute("SELECT 1")
-            result = await cur.fetchone()
-            return {"result": result}
+async def read_root(db: AsyncSession = Depends(get_db)):
+    result = await db.execute("SELECT 1")
+    return {"result": result.scalar()}

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from backend.Database.database import init_db, close_db
-from backend.Routes.routes import router
+from backend.Routes import routes
 
 app = FastAPI()
 
@@ -12,4 +12,4 @@ async def startup():
 async def shutdown():
     await close_db(app)
 
-app.include_router(router)
+app.include_router(routes.router)
