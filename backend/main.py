@@ -25,6 +25,11 @@ class Product(BaseModel):
     available: bool
     image: str
 
+class Category(BaseModel):
+    id: int
+    name: str
+    description: str
+
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
@@ -74,6 +79,15 @@ async def startup():
 async def shutdown():
     app.state.pool.close()
     await app.state.pool.wait_closed()
+
+@app.get("/categories", response_model=List[Category])
+async def list_categories():
+    async with app.state.pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute("SELECT id, name, description FROM categories")
+            result = await cur.fetchall()
+            categories = [Category(id=row[0], name=row[1], description=row[2]) for row in result]
+            return categories
 
 @app.get("/products", response_model=List[Product])
 async def list_products():
