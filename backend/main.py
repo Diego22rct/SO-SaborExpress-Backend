@@ -7,7 +7,6 @@ import aiomysql
 import jwt
 import datetime
 
-app = FastAPI()
 
 SECRET_KEY = "your_secret_key"
 ALGORITHM = "HS256"
@@ -40,17 +39,34 @@ def create_access_token(data: dict, expires_delta: Union[datetime.timedelta, Non
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+
+app = FastAPI(
+    title="Sabor Express API",
+    description="API for the Sabor Express application",
+    port=8080
+)
+
 @app.on_event("startup")
 async def startup():
-    app.state.pool = await aiomysql.create_pool(
-        host='localhost',
-        port=3306,
-        user='root',
-        password='root',
-        db='sabor_express',
-        minsize=1,
-        maxsize=10
-    )
+    try:
+        app.state.pool = await aiomysql.create_pool(
+            host='localhost',
+            port=3306,
+            user='root',
+            password='root',
+            db='sabor_express',
+            minsize=1,
+            maxsize=10
+        )
+        print("Connected to the database")
+        # Test the connection
+        async with app.state.pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute("SELECT 1")
+                result = await cur.fetchone()
+                print("Test query result:", result)
+    except Exception as e:
+        print("Error during connection to the database: ", e)
 
 @app.on_event("shutdown")
 async def shutdown():
@@ -113,8 +129,14 @@ async def signin(user: User):
 
 @app.get("/")
 async def read_root():
-    async with app.state.pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute("SELECT 1")
-            result = await cur.fetchone()
-            return {"result": result}
+    try: 
+        async with app.state.pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute("SELECT 1")
+                result = await cur.fetchone()
+                if result:
+                    return {"connection": "OK"}
+                else:
+                    return {"connection": "Error"}
+    except Exception as e:
+        return {"connection": "Error", "error": str(e)}
