@@ -22,6 +22,8 @@ class Product(BaseModel):
     name: str
     description: str
     price: float
+    available: bool
+    image: str
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
@@ -77,9 +79,9 @@ async def shutdown():
 async def list_products():
     async with app.state.pool.acquire() as conn:
         async with conn.cursor() as cur:
-            await cur.execute("SELECT id, name, description, price FROM products")
+            await cur.execute("SELECT id, name, description, price, available, image FROM products")
             result = await cur.fetchall()
-            products = [Product(id=row[0], name=row[1], description=row[2], price=row[3]) for row in result]
+            products = [Product(id=row[0], name=row[1], description=row[2], price=row[3], available=row[4], image=row[5]) for row in result]
             return products
 
 @app.get("/products/{product_id}", response_model=Product)
